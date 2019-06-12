@@ -43,7 +43,7 @@ void menuCheck()
 
 	enum MENU
 	{
-		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS
+		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS, MEDIAN
 	};
 
 	int select;
@@ -54,7 +54,7 @@ void menuCheck()
 	while (true)
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
-				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass) : ";
+				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : MEDIAN) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -118,6 +118,13 @@ void menuCheck()
 			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
 			FilterImageProcess::Calculate3x3Filter(grayBaseMat, targetMat, high_pass_filter);
 			imshow("highFilter", targetMat);
+			cvWaitKey();
+			break;
+
+		case MEDIAN :
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::MedianFilter(grayBaseMat, targetMat);
+			imshow("median", targetMat);
 			cvWaitKey();
 			break;
 		}

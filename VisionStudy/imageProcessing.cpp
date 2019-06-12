@@ -102,4 +102,43 @@ namespace FilterImageProcess
 			}
 		}
 	}
+
+	void MedianFilter(cv::Mat baseMat, cv::Mat medianMat)
+	{
+		for (int y = 1; y < baseMat.rows-1; y++)
+		{
+			for (int x = 1; x < baseMat.cols - 1; x++)
+			{
+				int sorted_array[9] = {0,};
+				int count = 0;
+				for (int pos_y = -1; pos_y < 2; pos_y++)
+				{
+					for (int pos_x = -1; pos_x < 2; pos_x++)
+					{
+						sorted_array[count++] = baseMat.at<uchar>(y + pos_y, x + pos_x);
+					}
+				}
+
+				sortArray3x3(sorted_array);
+
+				medianMat.at<uchar>(y,x) = sorted_array[4];
+			}
+		}
+	}
+
+	void sortArray3x3(int sort_array[9])
+	{
+		for (int i = 0; i < 8; i++)
+		{
+			for (int j = i; j < 9; j++)
+			{
+				if (sort_array[i] < sort_array[j])
+				{
+					int temp = sort_array[i];
+					sort_array[i] = sort_array[j];
+					sort_array[j] = temp;
+				}
+			}
+		}
+	}
 }
