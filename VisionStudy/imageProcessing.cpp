@@ -36,11 +36,10 @@ namespace BasicImageProcess
 				int r = targetMat.at<cv::Vec3b>(y, x)[0];
 				int g = targetMat.at<cv::Vec3b>(y, x)[1];
 				int b = targetMat.at<cv::Vec3b>(y, x)[2];
-				ycbcrMat.at<cv::Vec3b>(y, x)[0] = (0	+ r * 0.299	+ g * 0.587	+ b * 0.114);
-				ycbcrMat.at<cv::Vec3b>(y, x)[1] = (128 + r * -0.169 + g * -0.331+ b * 0.500);
-				ycbcrMat.at<cv::Vec3b>(y, x)[2] = (128 + r * 0.500 + g * -0.419 + b * -0.081);
+				ycbcrMat.at<cv::Vec3b>(y, x)[0] = (  0 + r *  0.299	+ g *  0.587 + b *  0.114);
+				ycbcrMat.at<cv::Vec3b>(y, x)[1] = (128 + r * -0.169 + g * -0.331 + b *  0.500);
+				ycbcrMat.at<cv::Vec3b>(y, x)[2] = (128 + r *  0.500 + g * -0.419 + b * -0.081);
 			}
 		}
 	}
-
 }

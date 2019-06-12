@@ -29,13 +29,15 @@ void menuCheck()
 
 	enum MENU
 	{
-		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM,
+		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, DRAWHISTOGRAM
 	};
 
 	int select;
+	Histogram checkHist(256);
+
 	while (true)
 	{
-		std::cout << "메뉴를 선택하십시오 (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram)";
+		std::cout << "메뉴를 선택하십시오 (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | )";
 		std::cin >> select;
 		
 		switch (select)
@@ -66,10 +68,12 @@ void menuCheck()
 			break;
 
 		case CHECKHISTOGRAM:
-			Histogram checkHist(256);
-
 			checkHist.CheckHistogram(grayBaseMat);
-			checkHist.printHistogram();
+			//checkHist.printHistogram();
+			checkHist.getMaxCount();
+			checkHist.drawHistogram();
+			imshow("Histogram", checkHist.histogram_image);
+			cvWaitKey();
 			break;
 		}
 	}
