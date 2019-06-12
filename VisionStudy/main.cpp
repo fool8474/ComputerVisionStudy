@@ -2,7 +2,7 @@
 
 using namespace cv;
 
-Mat colorBaseMat, colorBaseMat2, grayBaseMat, targetMat;
+Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, bridgeMat;
 
 void menuCheck();
 bool ImageLoadProcess();
@@ -23,7 +23,8 @@ bool ImageLoadProcess()
 {
 	colorBaseMat = imread("lena_color.jpg", CV_LOAD_IMAGE_COLOR);
 	colorBaseMat2 = imread("dog.jpg", CV_LOAD_IMAGE_COLOR);
-	if (colorBaseMat.empty() || colorBaseMat2.empty())
+	morpBaseMat = imread("morphologyTest.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	if (colorBaseMat.empty() || colorBaseMat2.empty() || morpBaseMat.empty())
 	{
 		std::cout << "Image Load Failed!" << std::endl;
 		return false;
@@ -43,7 +44,7 @@ void menuCheck()
 
 	enum MENU
 	{
-		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS, MEDIAN
+		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS, MEDIAN, MORPHOLOGY
 	};
 
 	int select;
@@ -54,7 +55,7 @@ void menuCheck()
 	while (true)
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
-				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : MEDIAN) : ";
+				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -125,6 +126,28 @@ void menuCheck()
 			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
 			FilterImageProcess::MedianFilter(grayBaseMat, targetMat);
 			imshow("median", targetMat);
+			cvWaitKey();
+			break;
+
+		case MORPHOLOGY :
+			targetMat.create(Size(morpBaseMat.rows, morpBaseMat.cols), CV_8UC1);
+			bridgeMat.create(Size(morpBaseMat.rows, morpBaseMat.cols), CV_8UC1);
+			
+			morpBaseMat.copyTo(targetMat);
+			BasicImageProcess::MorphologyDilation(morpBaseMat, targetMat);
+			imshow("Dilation", targetMat);
+
+			morpBaseMat.copyTo(targetMat);
+			BasicImageProcess::MorphologyErosion(morpBaseMat, targetMat);
+			imshow("Erosion", targetMat);
+
+			morpBaseMat.copyTo(targetMat);
+			BasicImageProcess::MorphologyOpening(morpBaseMat, bridgeMat, targetMat);
+			imshow("Opening", targetMat);
+
+			morpBaseMat.copyTo(targetMat);
+			BasicImageProcess::MorphologyClosing(morpBaseMat, bridgeMat, targetMat);
+			imshow("Closing", targetMat);
 			cvWaitKey();
 			break;
 		}

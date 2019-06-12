@@ -8,6 +8,10 @@ namespace BasicImageProcess
 	void ToYCrCbColor(cv::Mat baseMat, cv::Mat ycbcrMat);
 	void ToBinary(cv::Mat baseMat, cv::Mat binMat, int threshold);
 	void DissolveImage(cv::Mat baseMat1, cv::Mat baseMat2, cv::Mat dissolveMat, double alpha);
+	void MorphologyErosion(cv::Mat baseMat, cv::Mat morpOutput);
+	void MorphologyDilation(cv::Mat baseMat, cv::Mat morpOutput);
+	void MorphologyClosing(cv::Mat baseMat, cv::Mat morpDil, cv::Mat morpOutput);
+	void MorphologyOpening(cv::Mat baseMat, cv::Mat morpEro, cv::Mat morpOutput);
 }
 
 namespace FilterImageProcess

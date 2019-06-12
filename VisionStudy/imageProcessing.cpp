@@ -75,6 +75,54 @@ namespace BasicImageProcess
 			}
 		}
 	}
+
+	void MorphologyErosion(cv::Mat baseMat, cv::Mat morpOutput)
+	{
+		int point[4][2] = { {-1,0},{1,0},{0,-1},{0,1}};
+
+		for (int y = 1; y < baseMat.rows-1; y++)
+		{
+			for (int x = 1; x < baseMat.cols-1; x++)
+			{
+				if (baseMat.at<uchar>(y,x) < 128)
+					for (int pt_cnt = 0; pt_cnt < 4; pt_cnt++)
+					{
+						morpOutput.at<uchar>(y + point[pt_cnt][0], x + point[pt_cnt][1]) = 0;
+					}
+			}
+		}
+	}
+
+	void MorphologyDilation(cv::Mat baseMat, cv::Mat morpOutput)
+	{
+		int point[4][2] = { {-1,0},{1,0},{0,-1},{0,1}};
+
+		for (int y = 1; y < baseMat.rows-1; y++)
+		{
+			for (int x = 1; x < baseMat.cols-1; x++)
+			{
+				if (baseMat.at<uchar>(y, x) > 128)
+					for (int pt_cnt = 0; pt_cnt < 4; pt_cnt++)
+					{
+						morpOutput.at<uchar>(y + point[pt_cnt][0], x + point[pt_cnt][1]) = 255;
+					}
+			}
+		}
+	}
+
+	void MorphologyOpening(cv::Mat baseMat, cv::Mat morpEro, cv::Mat morpOutput)
+	{
+		MorphologyErosion(baseMat, morpEro);
+		morpEro.copyTo(morpOutput);
+		MorphologyDilation(morpEro, morpOutput);
+	}
+
+	void MorphologyClosing(cv::Mat baseMat, cv::Mat morpDil, cv::Mat morpOutput)
+	{
+		MorphologyDilation(baseMat, morpDil);
+		morpDil.copyTo(morpOutput);
+		MorphologyErosion(morpDil, morpOutput);
+	}
 }
 
 namespace FilterImageProcess
