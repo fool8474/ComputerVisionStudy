@@ -2,43 +2,103 @@
 
 namespace BasicImageProcess
 {
-	void ToGrayScale(cv::Mat targetMat, cv::Mat grayMat)
+	void ToGrayScale(cv::Mat baseMat, cv::Mat grayMat)
 	{
-		for (int y = 0; y < targetMat.rows; y++)
+		for (int y = 0; y < baseMat.rows; y++)
 		{
-			for (int x = 0; x < targetMat.cols; x++)
+			for (int x = 0; x < baseMat.cols; x++)
 			{
-				grayMat.at<uchar>(y, x) = (targetMat.at<cv::Vec3b>(y, x)[0] + targetMat.at <cv::Vec3b >(y, x)[1] + targetMat.at<cv::Vec3b>(y, x)[2]) / 3;
+				grayMat.at<uchar>(y, x) = (baseMat.at<cv::Vec3b>(y, x)[0] + baseMat.at <cv::Vec3b >(y, x)[1] + baseMat.at<cv::Vec3b>(y, x)[2]) / 3;
 			}
 		}
 	}
 
-	void InverseImage(cv::Mat targetMat, cv::Mat inverseMat)
+	void InverseImage(cv::Mat baseMat, cv::Mat inverseMat)
 	{
-		for (int y = 0; y < targetMat.rows; y++)
+		for (int y = 0; y < baseMat.rows; y++)
 		{
-			for (int x = 0; x < targetMat.cols; x++)
+			for (int x = 0; x < baseMat.cols; x++)
 			{
 				for (int rgbPoint = 0; rgbPoint < 3; rgbPoint++) 
 				{
-					inverseMat.at<cv::Vec3b>(y, x)[rgbPoint] = 255 - targetMat.at<cv::Vec3b>(y, x)[rgbPoint];
+					inverseMat.at<cv::Vec3b>(y, x)[rgbPoint] = 255 - baseMat.at<cv::Vec3b>(y, x)[rgbPoint];
 				}
 			}
 		}
 	}
 
-	void ToYCrCbColor(cv::Mat targetMat, cv::Mat ycbcrMat)
+	void ToYCrCbColor(cv::Mat baseMat, cv::Mat ycbcrMat)
 	{
-		for (int y = 0; y < targetMat.rows; y++)
+		for (int y = 0; y < baseMat.rows; y++)
 		{
-			for (int x = 0; x < targetMat.cols; x++)
+			for (int x = 0; x < baseMat.cols; x++)
 			{
-				int r = targetMat.at<cv::Vec3b>(y, x)[0];
-				int g = targetMat.at<cv::Vec3b>(y, x)[1];
-				int b = targetMat.at<cv::Vec3b>(y, x)[2];
+				int r = baseMat.at<cv::Vec3b>(y, x)[0];
+				int g = baseMat.at<cv::Vec3b>(y, x)[1];
+				int b = baseMat.at<cv::Vec3b>(y, x)[2];
 				ycbcrMat.at<cv::Vec3b>(y, x)[0] = (  0 + r *  0.299	+ g *  0.587 + b *  0.114);
 				ycbcrMat.at<cv::Vec3b>(y, x)[1] = (128 + r * -0.169 + g * -0.331 + b *  0.500);
 				ycbcrMat.at<cv::Vec3b>(y, x)[2] = (128 + r *  0.500 + g * -0.419 + b * -0.081);
+			}
+		}
+	}
+
+	void ToBinary(cv::Mat baseMat, cv::Mat binMat, int threshold)
+	{
+		for (int y = 0; y < baseMat.rows; y++)
+		{
+			for (int x = 0; x < baseMat.cols; x++)
+			{
+				if (baseMat.at<uchar>(y, x) < threshold)
+				{
+					binMat.at<uchar>(y, x) = 0;
+				}
+
+				else
+				{
+					binMat.at<uchar>(y, x) = 255;
+				}
+			}
+		}
+	}
+
+	void DissolveImage(cv::Mat baseMat1, cv::Mat baseMat2, cv::Mat dissolveMat, double alpha)
+	{
+		for (int y = 0; y < baseMat1.rows; y++)
+		{
+			for (int x = 0; x < baseMat1.cols; x++)
+			{
+				for (int rgbPoint = 0; rgbPoint < 3; rgbPoint++)
+				{
+					dissolveMat.at<cv::Vec3b>(y, x)[rgbPoint] = alpha * baseMat1.at<cv::Vec3b>(y, x)[rgbPoint] + (1 - alpha) * baseMat2.at<cv::Vec3b>(y, x)[rgbPoint];
+				}
+			}
+		}
+	}
+}
+
+namespace FilterImageProcess
+{
+	void Calculate3x3Filter(cv::Mat baseMat, cv::Mat filteredMat, double filter[3][3])
+	{
+		filteredMat.setTo(cv::Scalar(255));
+
+		for (int y = 1; y < baseMat.rows - 1; y++)
+		{
+			for (int x = 1; x < baseMat.cols - 1; x++)
+			{
+				double sum_of_filter_cal = 0;
+
+				for (int fil_y = -1; fil_y < 2; fil_y++)
+				{
+					for (int fil_x = -1; fil_x < 2; fil_x++)
+					{
+						sum_of_filter_cal += (baseMat.at<uchar>(y + fil_y, x + fil_x) * filter[fil_y + 1][fil_x + 1]);
+					}
+				}
+				sum_of_filter_cal = cv::saturate_cast<uchar>(sum_of_filter_cal);
+
+				filteredMat.at<uchar>(y, x) = sum_of_filter_cal;
 			}
 		}
 	}

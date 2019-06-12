@@ -58,8 +58,6 @@ void Histogram::drawHistogram()
 		int curPosition = (int)(((double)hist[i] / maxCount) * histogram_image.rows);
 		if (curPosition >= histogram_image.rows) curPosition = histogram_image.rows - 1;
 		cv::Point pt1(i * 3, histogram_image.rows - curPosition);
-
-
 		cv::Point pt2(i * 3, histogram_image.rows - lastPosition);
 		lastPosition = curPosition;
 

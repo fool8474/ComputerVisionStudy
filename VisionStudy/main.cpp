@@ -2,23 +2,37 @@
 
 using namespace cv;
 
-Mat colorBaseMat, grayBaseMat, targetMat;
+Mat colorBaseMat, colorBaseMat2, grayBaseMat, targetMat;
 
 void menuCheck();
+bool ImageLoadProcess();
 
 int main()
 {
-	colorBaseMat = imread("lena_color.jpg", CV_LOAD_IMAGE_COLOR);
-	if (colorBaseMat.empty())
+	if (!ImageLoadProcess())
 	{
-		std::cout << "이름 틀림" << std::endl;
 		return -1;
+	}
+
+	menuCheck();
+	cvWaitKey();
+	return 1;
+}
+
+bool ImageLoadProcess()
+{
+	colorBaseMat = imread("lena_color.jpg", CV_LOAD_IMAGE_COLOR);
+	colorBaseMat2 = imread("dog.jpg", CV_LOAD_IMAGE_COLOR);
+	if (colorBaseMat.empty() || colorBaseMat2.empty())
+	{
+		std::cout << "Image Load Failed!" << std::endl;
+		return false;
 	}
 
 	grayBaseMat.create(Size(colorBaseMat.rows, colorBaseMat.cols), CV_8UC1);
 	BasicImageProcess::ToGrayScale(colorBaseMat, grayBaseMat);
-	
-	menuCheck();
+
+	return true;
 }
 
 void menuCheck()
@@ -29,15 +43,18 @@ void menuCheck()
 
 	enum MENU
 	{
-		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, DRAWHISTOGRAM
+		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS
 	};
 
 	int select;
 	Histogram checkHist(256);
+	double high_pass_filter[3][3] = { {-1, -1, -1},{-1, 8, -1},{-1, -1, -1} };
+	double low_pass_filter[3][3] = { {1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9} };
 
 	while (true)
 	{
-		std::cout << "메뉴를 선택하십시오 (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | )";
+		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
+				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -72,7 +89,35 @@ void menuCheck()
 			//checkHist.printHistogram();
 			checkHist.getMaxCount();
 			checkHist.drawHistogram();
-			imshow("Histogram", checkHist.histogram_image);
+			imshow("Histogram | of Lena(GrayScale)", checkHist.histogram_image);
+			cvWaitKey();
+			break;
+
+		case BINARY:
+			targetMat.create(Size(colorBaseMat.rows, colorBaseMat.cols), CV_8UC1);
+			BasicImageProcess::ToBinary(grayBaseMat, targetMat, 128);
+			imshow("binary", targetMat);
+			cvWaitKey();
+			break;
+		
+		case DISSOLVE:
+			targetMat.create(Size(colorBaseMat.rows, colorBaseMat.cols), CV_8UC3);
+			BasicImageProcess::DissolveImage(colorBaseMat, colorBaseMat2, targetMat, 0.5);
+			imshow("dissolved", targetMat);
+			cvWaitKey();
+			break;
+
+		case LOWPASS:
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, targetMat, low_pass_filter);
+			imshow("lowFilter", targetMat);
+			cvWaitKey();
+			break;
+
+		case HIGHPASS:
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, targetMat, high_pass_filter);
+			imshow("highFilter", targetMat);
 			cvWaitKey();
 			break;
 		}
