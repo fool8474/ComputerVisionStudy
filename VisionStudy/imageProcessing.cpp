@@ -123,6 +123,22 @@ namespace BasicImageProcess
 		morpDil.copyTo(morpOutput);
 		MorphologyErosion(morpDil, morpOutput);
 	}
+
+	void GetEdgeStrength(cv::Mat sobelX, cv::Mat sobelY, cv::Mat strengthMat)
+	{
+		int edge_strength;
+		int current_px;
+
+		for (int y = 0; y < sobelX.rows; y++)
+		{
+			for (int x = 0; x < sobelX.cols; x++)
+			{
+				edge_strength = (sqrt(pow(sobelX.at<uchar>(y, x), 2) + pow(sobelY.at<uchar>(y, x), 2)));
+				current_px = cv::saturate_cast<uchar>(edge_strength);
+				strengthMat.at<uchar>(y, x) = current_px;
+			}
+		}
+	}
 }
 
 namespace FilterImageProcess
@@ -148,6 +164,74 @@ namespace FilterImageProcess
 
 				filteredMat.at<uchar>(y, x) = sum_of_filter_cal;
 			}
+		}
+	}
+
+	void Calculate5x5Filter(cv::Mat baseMat, cv::Mat filteredMat, double filter[5][5])
+	{
+		filteredMat.setTo(cv::Scalar(255));
+
+		for (int y = 2; y < baseMat.rows - 2; y++)
+		{
+			for (int x = 2; x < baseMat.cols - 2; x++)
+			{
+				double sum_of_filter_cal = 0;
+
+				for (int fil_y = -2; fil_y < 3; fil_y++)
+				{
+					for (int fil_x = -2; fil_x < 3; fil_x++)
+					{
+						sum_of_filter_cal += (baseMat.at<uchar>(y + fil_y, x + fil_x) * filter[fil_y + 1][fil_x + 1]);
+					}
+				}
+				sum_of_filter_cal = cv::saturate_cast<uchar>(sum_of_filter_cal);
+
+				filteredMat.at<uchar>(y, x) = sum_of_filter_cal;
+			}
+		}
+	}
+
+	void PyramidFilter(const int matCount,  cv::Mat baseMat, std::vector<cv::Mat> *filteredMats, double filter[5][5])
+	{
+		
+		filteredMats->push_back(baseMat);
+
+		int newWidth = baseMat.cols;
+		int newHeights = baseMat.rows;
+
+		cv::Mat temp;
+		baseMat.copyTo(temp);
+
+		for (int i = 1; i < matCount; i++)
+		{
+			cv::Mat dst(cv::Size(newWidth / 2, newHeights / 2), CV_8UC1);
+			dst.setTo(cv::Scalar(255));
+
+			for (int y = 2; y < dst.rows-2; y++)
+			{
+				for (int x = 2; x < dst.cols-2; x++)
+				{
+					double sum_of_filter_cal = 0;
+
+					for (int fil_y = -2; fil_y < 3; fil_y++)
+					{
+						for (int fil_x = -2; fil_x < 3; fil_x++)
+						{
+							sum_of_filter_cal += (filteredMats->at(i-1).at<uchar>(y * 2 + fil_y, x * 2 + fil_x) * filter[fil_y + 2][fil_x + 2]);
+						}
+					}
+
+					sum_of_filter_cal = cv::saturate_cast<uchar>(sum_of_filter_cal);
+
+					dst.at<uchar>(y, x) = sum_of_filter_cal;
+
+				}
+			}
+			
+			filteredMats->push_back(dst);
+
+			newWidth /= 2;
+			newHeights /= 2;
 		}
 	}
 

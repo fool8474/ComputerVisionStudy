@@ -3,6 +3,7 @@
 using namespace cv;
 
 Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, bridgeMat;
+Mat sobelXMat, sobelYMat;
 
 void menuCheck();
 bool ImageLoadProcess();
@@ -46,6 +47,7 @@ void menuCheck()
 	{
 		EXIT = 0, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, 
 		LOWPASS = 7, HIGHPASS, MEDIAN, MORPHOLOGY, HOMOGENEOUSMOVE, HOMOGENEOUSROT,
+		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG
 	};
 
 	int select;
@@ -53,12 +55,17 @@ void menuCheck()
 	Homogeneous homo;
 	double high_pass_filter[3][3] = { {-1, -1, -1},{-1, 8, -1},{-1, -1, -1} };
 	double low_pass_filter[3][3] = { {1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9} };
+	double sobel_y_filter[3][3] = { {-1,-2,-1},{0,0,0},{1,2,1} };
+	double sobel_x_filter[3][3] = { {-1,0,1},{-2,0,2},{-1,0,1} };
+	double pyramid_filter[5][5] = { {.0025, .0125, .0200, .0125, .0025},{.0125, .0625, .1000, .0625, .0125},{.0200, .1000, .1600, .1000, .0200},{.0125, .0625, .1000, .0625, .0125},{.0025, .0125, .0200, .0125, .0025} };
+	std::vector<Mat> matVec;
+	std::vector<Mat> * matVecPt = &matVec;
 
 	while (true)
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
 				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology | 11 : homoMove | 12 : homoRot | "
-				  << " \n ) : ";
+				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -190,6 +197,47 @@ void menuCheck()
 			imshow("homo3MoveRotMove", targetMat);
 			cvWaitKey();
 			break;
+
+		case SOBELY :
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, targetMat, sobel_y_filter);
+			imshow("sobelYFilter", targetMat);
+			cvWaitKey();
+			break;
+
+		case SOBELX :
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, targetMat, sobel_x_filter);
+			imshow("sobelXFilter", targetMat);
+			cvWaitKey();
+			break;
+
+		case PYRAMID :
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::PyramidFilter(5, grayBaseMat, matVecPt, pyramid_filter);
+
+			for (int i = 0; i < matVecPt->size(); i++)
+			{
+				std::string str = std::to_string(i) + "pyramid";
+				cvNamedWindow(str.c_str(), CV_WINDOW_NORMAL);
+				cv::imshow(str.c_str(), matVecPt->at(i));
+			}
+
+			cvWaitKey();
+
+		case SOBELSTRENG :
+			sobelXMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, sobelXMat, sobel_x_filter);
+			
+			sobelYMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			FilterImageProcess::Calculate3x3Filter(grayBaseMat, sobelYMat, sobel_y_filter);
+			
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+
+			BasicImageProcess::GetEdgeStrength(sobelXMat, sobelYMat, targetMat);
+			cv::imshow("edgeStrength", targetMat);
+
+			cvWaitKey();
 		}
 	}
 }
