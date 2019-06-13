@@ -13,6 +13,8 @@ namespace BasicImageProcess
 	void MorphologyClosing(cv::Mat baseMat, cv::Mat morpDil, cv::Mat morpOutput);
 	void MorphologyOpening(cv::Mat baseMat, cv::Mat morpEro, cv::Mat morpOutput);
 	void GetEdgeStrength(cv::Mat sobelX, cv::Mat sobelY, cv::Mat strengthMat);
+	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, int threshold);
+	void drawEdgePoint(cv::Mat edgeMat, int y, int x);
 }
 
 namespace FilterImageProcess

@@ -4,10 +4,10 @@
 class Homogeneous
 {
 private:
-	const double PI;
-	void MatrixMul(double homoMatrix[3][3]);
-	void MatrixMul(double homoCoord[1][3], double outputCoord[1][3]);
-	double HMatrix[3][3];
+	const double PI = 3.141592;
+	void MatrixMul(float homoMatrix[3][3]);
+	void MatrixMul(float homoCoord[1][3], float outputCoord[1][3]);
+	float HMatrix[3][3];
 
 	bool initMat;
 

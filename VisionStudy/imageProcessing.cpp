@@ -139,6 +139,55 @@ namespace BasicImageProcess
 			}
 		}
 	}
+
+	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, int threshold)
+	{
+
+		using namespace std;
+
+		int pt_dir[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} };
+		int pt_mora[9][2] = { {-1,-1},{-1,0},{-1,1},{0,-1},{0,0},{0,1},{1,-1},{1,0},{1,1} };
+		
+
+		for (int y = 2; y < baseMat.rows - 2; y++)
+		{
+			for (int x = 2; x < baseMat.cols - 2; x++)
+			{
+				bool check_edge = true;
+
+				for (int cur_pt_dir = 0; cur_pt_dir < 4; cur_pt_dir++)
+				{
+					int cur_pt_result = 0;
+
+					for (int cur_pt_mora = 0; cur_pt_mora < 9; cur_pt_mora++)
+					{
+						int ori_y_pos = baseMat.at<uchar>(y + pt_mora[cur_pt_mora][0], x + pt_mora[cur_pt_mora][1]);
+						int mov_y_pos = baseMat.at<uchar>(y + pt_dir[cur_pt_dir][0] + pt_mora[cur_pt_mora][0], x + pt_dir[cur_pt_dir][1] + pt_mora[cur_pt_mora][1]);
+
+						int cur_dir_result = pow(mov_y_pos - ori_y_pos, 2);
+
+						cur_pt_result += cur_dir_result;
+					}
+
+					if (cur_pt_result <= threshold)
+					{
+						check_edge = false;
+						break;
+					}
+				}
+
+				if (check_edge)
+				{
+					drawEdgePoint(moravecMat, y, x);
+				}
+			}
+		}
+	}
+
+	void drawEdgePoint(cv::Mat edgeMat, int y, int x)
+	{
+		cv::circle(edgeMat, cv::Point(x, y), 2, cv::Scalar(0));
+	}
 }
 
 namespace FilterImageProcess

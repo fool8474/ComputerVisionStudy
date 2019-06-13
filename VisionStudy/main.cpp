@@ -3,7 +3,7 @@
 using namespace cv;
 
 Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, bridgeMat;
-Mat sobelXMat, sobelYMat;
+Mat sobelXMat, sobelYMat, buckBaseMat;
 
 void menuCheck();
 bool ImageLoadProcess();
@@ -25,7 +25,9 @@ bool ImageLoadProcess()
 	colorBaseMat = imread("lena_color.jpg", CV_LOAD_IMAGE_COLOR);
 	colorBaseMat2 = imread("dog.jpg", CV_LOAD_IMAGE_COLOR);
 	morpBaseMat = imread("morphologyTest.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	if (colorBaseMat.empty() || colorBaseMat2.empty() || morpBaseMat.empty())
+	buckBaseMat = imread("bucks.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+
+	if (colorBaseMat.empty() || colorBaseMat2.empty() || morpBaseMat.empty() || buckBaseMat.empty())
 	{
 		std::cout << "Image Load Failed!" << std::endl;
 		return false;
@@ -47,17 +49,20 @@ void menuCheck()
 	{
 		EXIT = 0, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, 
 		LOWPASS = 7, HIGHPASS, MEDIAN, MORPHOLOGY, HOMOGENEOUSMOVE, HOMOGENEOUSROT,
-		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG
+		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG, MORAVEC
 	};
 
 	int select;
+	
 	Histogram checkHist(256);
 	Homogeneous homo;
+	
 	double high_pass_filter[3][3] = { {-1, -1, -1},{-1, 8, -1},{-1, -1, -1} };
 	double low_pass_filter[3][3] = { {1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9} };
 	double sobel_y_filter[3][3] = { {-1,-2,-1},{0,0,0},{1,2,1} };
 	double sobel_x_filter[3][3] = { {-1,0,1},{-2,0,2},{-1,0,1} };
 	double pyramid_filter[5][5] = { {.0025, .0125, .0200, .0125, .0025},{.0125, .0625, .1000, .0625, .0125},{.0200, .1000, .1600, .1000, .0200},{.0125, .0625, .1000, .0625, .0125},{.0025, .0125, .0200, .0125, .0025} };
+	
 	std::vector<Mat> matVec;
 	std::vector<Mat> * matVecPt = &matVec;
 
@@ -65,7 +70,7 @@ void menuCheck()
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
 				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology | 11 : homoMove | 12 : homoRot | "
-				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength) : ";
+				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength | 17 : MORAVEC |) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -196,6 +201,7 @@ void menuCheck()
 			homo.PrintHMatrix();
 			imshow("homo3MoveRotMove", targetMat);
 			cvWaitKey();
+
 			break;
 
 		case SOBELY :
@@ -238,6 +244,15 @@ void menuCheck()
 			cv::imshow("edgeStrength", targetMat);
 
 			cvWaitKey();
+			break;
+
+		case MORAVEC :
+			
+			buckBaseMat.copyTo(targetMat);
+			BasicImageProcess::MoravecEdgeDetect(buckBaseMat, targetMat, 15000);
+			cv::imshow("moravec", targetMat);
+			cvWaitKey();
+			break;
 		}
 	}
 }
