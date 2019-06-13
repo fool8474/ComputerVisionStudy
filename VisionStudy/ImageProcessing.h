@@ -18,5 +18,5 @@ namespace FilterImageProcess
 {
 	void Calculate3x3Filter(cv::Mat baseMat, cv::Mat filteredMat, double filter[3][3]);
 	void MedianFilter(cv::Mat baseMat, cv::Mat medianMat);
-	void sortArray3x3(int sort_array[9]);
+	void SortArray3x3(int sort_array[9]);
 }

@@ -167,14 +167,14 @@ namespace FilterImageProcess
 					}
 				}
 
-				sortArray3x3(sorted_array);
+				SortArray3x3(sorted_array);
 
 				medianMat.at<uchar>(y,x) = sorted_array[4];
 			}
 		}
 	}
 
-	void sortArray3x3(int sort_array[9])
+	void SortArray3x3(int sort_array[9])
 	{
 		for (int i = 0; i < 8; i++)
 		{

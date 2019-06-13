@@ -44,18 +44,21 @@ void menuCheck()
 
 	enum MENU
 	{
-		EXIT, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, LOWPASS, HIGHPASS, MEDIAN, MORPHOLOGY
+		EXIT = 0, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, 
+		LOWPASS = 7, HIGHPASS, MEDIAN, MORPHOLOGY, HOMOGENEOUSMOVE, HOMOGENEOUSROT,
 	};
 
 	int select;
 	Histogram checkHist(256);
+	Homogeneous homo;
 	double high_pass_filter[3][3] = { {-1, -1, -1},{-1, 8, -1},{-1, -1, -1} };
 	double low_pass_filter[3][3] = { {1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9},{1.0 / 9, 1.0 / 9, 1.0 / 9} };
 
 	while (true)
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
-				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology) : ";
+				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology | 11 : homoMove | 12 : homoRot | "
+				  << " \n ) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -148,6 +151,43 @@ void menuCheck()
 			morpBaseMat.copyTo(targetMat);
 			BasicImageProcess::MorphologyClosing(morpBaseMat, bridgeMat, targetMat);
 			imshow("Closing", targetMat);
+			cvWaitKey();
+			break;
+
+		case HOMOGENEOUSMOVE:	
+			homo.InitHomo();
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			homo.Move(50,50);
+			homo.ForwardingMapping(grayBaseMat, targetMat);
+			homo.PrintHMatrix();
+
+			imshow("homoMove", targetMat);
+			cvWaitKey();
+			break;
+
+		case HOMOGENEOUSROT:
+			homo.InitHomo();
+			homo.PrintHMatrix();
+
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			homo.Move(-(grayBaseMat.rows / 2), -(grayBaseMat.cols / 2));
+			homo.ForwardingMapping(grayBaseMat, targetMat);
+			homo.PrintHMatrix();
+			imshow("homo3Move", targetMat);
+			cvWaitKey();
+
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			homo.Rotate(70);
+			homo.ForwardingMapping(grayBaseMat, targetMat);
+			homo.PrintHMatrix();
+			imshow("homo3MoveRot", targetMat);
+			cvWaitKey();
+
+			targetMat.create(Size(grayBaseMat.rows, grayBaseMat.cols), CV_8UC1);
+			homo.Move(grayBaseMat.rows / 2, grayBaseMat.cols / 2);
+			homo.ForwardingMapping(grayBaseMat, targetMat);
+			homo.PrintHMatrix();
+			imshow("homo3MoveRotMove", targetMat);
 			cvWaitKey();
 			break;
 		}

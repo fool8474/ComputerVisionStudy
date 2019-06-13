@@ -136,11 +136,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="histogram.cpp" />
+    <ClCompile Include="Homogeneous.cpp" />
     <ClCompile Include="imageProcessing.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="main.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="histogram.h" />
+    <ClInclude Include="Homogeneous.h" />
     <ClInclude Include="ImageProcessing.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
