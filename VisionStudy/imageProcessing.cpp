@@ -1,3 +1,4 @@
+
 #include "ImageProcessing.h"
 
 namespace BasicImageProcess
@@ -140,7 +141,7 @@ namespace BasicImageProcess
 		}
 	}
 
-	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, int threshold)
+	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, std::vector<cv::Point>* edgeVec, int threshold)
 	{
 
 		using namespace std;
@@ -148,6 +149,7 @@ namespace BasicImageProcess
 		int pt_dir[4][2] = { {-1,0}, {1,0}, {0,-1}, {0,1} };
 		int pt_mora[9][2] = { {-1,-1},{-1,0},{-1,1},{0,-1},{0,0},{0,1},{1,-1},{1,0},{1,1} };
 		
+		int dir_catch_min[4] = {0,};
 
 		for (int y = 2; y < baseMat.rows - 2; y++)
 		{
@@ -155,8 +157,14 @@ namespace BasicImageProcess
 			{
 				bool check_edge = true;
 
+				for(int i=0; i<4; i++)
+				{ 
+					dir_catch_min[i] = { 0 };
+				}
+				
 				for (int cur_pt_dir = 0; cur_pt_dir < 4; cur_pt_dir++)
 				{
+
 					int cur_pt_result = 0;
 
 					for (int cur_pt_mora = 0; cur_pt_mora < 9; cur_pt_mora++)
@@ -174,10 +182,25 @@ namespace BasicImageProcess
 						check_edge = false;
 						break;
 					}
+
+					dir_catch_min[cur_pt_dir] = cur_pt_result;
 				}
 
-				if (check_edge)
+				int minRe = 99999999;
+				int minPo = -1;
+
+				for (int i = 0; i < 4; i++)
 				{
+					if (dir_catch_min[i] < minRe)
+					{
+						minRe = dir_catch_min[i];
+						minPo = i;
+					}
+				}
+	
+				if (minRe >= 30000)
+				{
+					edgeVec->push_back(cv::Point(x,y));
 					drawEdgePoint(moravecMat, y, x);
 				}
 			}
@@ -186,7 +209,102 @@ namespace BasicImageProcess
 
 	void drawEdgePoint(cv::Mat edgeMat, int y, int x)
 	{
-		cv::circle(edgeMat, cv::Point(x, y), 2, cv::Scalar(0));
+		cv::circle(edgeMat, cv::Point(x, y), 2, cv::Scalar(0,255,0));
+	}
+
+	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<Histogram>& hists)
+	{
+		Histogram hist(10);
+		hists.push_back(hist);
+		for (int i = 0; i < 10; i++)
+		{
+			hist.hist[i] ++;
+		}
+		hist.printHistogram();
+		return;
+		cv::Mat y_edge_mat, x_edge_mat;
+		cv::Mat orient_mat, magnit_mat;
+
+		y_edge_mat.create(baseMat.size(), CV_8UC1);
+		x_edge_mat.create(baseMat.size(), CV_8UC1);
+		orient_mat.create(baseMat.size(), CV_8UC1);
+		magnit_mat.create(baseMat.size(), CV_8UC1);
+		
+		for (int y = 1; y < baseMat.rows - 1; y++)
+		{
+			for (int x = 1; x < baseMat.cols - 1; x++)
+			{
+				int result_x = baseMat.at<uchar>(y, x + 1) - baseMat.at<uchar>(y, x - 1);
+				int result_y = baseMat.at<uchar>(y + 1, x) - baseMat.at<uchar>(y - 1, x);
+
+				float orientation = cv::fastAtan2(result_y, result_x); // atan2(result_y, (result_x + 0.000001)) / 3.141592 * 180;
+				orientation = (int)(orientation / 45);
+				orient_mat.at<uchar>(y, x) = orientation;
+
+				int magnitude = (int)sqrt(pow(result_x, 2) + pow(result_y, 2));
+				magnit_mat.at<uchar>(y, x) = magnitude;
+
+				result_x = abs(result_x);
+				result_y = abs(result_y);
+				y_edge_mat.at<uchar>(y, x) = result_y;
+				x_edge_mat.at<uchar>(y, x) = result_x;
+				
+
+			}
+		}
+
+		std::vector<std::vector<Histogram>> edges_all_hist;
+
+		for (int edges_pt = 0; edges_pt < edges.size(); edges_pt++)
+		{
+			std::vector<Histogram> edge_hist;
+
+			/* need to change 16 * 16 cell, 4 hist(8 grade) for edges */
+			Histogram hist_1(8);
+			Histogram hist_2(8);
+			Histogram hist_3(8);
+			Histogram hist_4(8);
+			
+			edge_hist.push_back(hist_1);
+			edge_hist.push_back(hist_2);
+			edge_hist.push_back(hist_3);
+			edge_hist.push_back(hist_4);
+
+			for (int y_mv = -8; y_mv < 8; y_mv++)
+			{
+				for (int x_mv = -8; x_mv < 8; x_mv++)
+				{
+					int position = GetQuadrantForHOG(y_mv, x_mv);
+					int cur_orient = (int)orient_mat.at<uchar>(y_mv + edges[edges_pt].y, x_mv + edges[edges_pt].x);
+					int cur_magnit = (int)magnit_mat.at<uchar>(y_mv + edges[edges_pt].y, x_mv + edges[edges_pt].x);
+					edge_hist[position-1].hist[cur_orient] += cur_magnit;
+				}
+			}
+
+			edges_all_hist.push_back(edge_hist);
+
+		}
+		
+		cv::imshow("y_edge", y_edge_mat);
+		cv::imshow("x_edge", x_edge_mat);
+		cv::imshow("magnitude", magnit_mat);
+		cv::imshow("orient", orient_mat);
+		cv::waitKey();
+	}
+
+	int GetQuadrantForHOG(int y, int x)
+	{
+		if (y < 0 && x >= 0)
+			return 1;
+
+		if (y < 0 && x < 0)
+			return 2;
+
+		if (y >= 0 && x < 0)
+			return 3;
+
+		if (y >= 0 && x >= 0)
+			return 4;
 	}
 }
 

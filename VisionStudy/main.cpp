@@ -2,8 +2,9 @@
 
 using namespace cv;
 
-Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, bridgeMat;
-Mat sobelXMat, sobelYMat, buckBaseMat;
+Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, targetMat2, bridgeMat;
+Mat sobelXMat, sobelYMat, buckBaseMat, idolMat_1, idolMat_2, idolMat_result;
+std::vector<Point> edges_1, edges_2;
 
 void menuCheck();
 bool ImageLoadProcess();
@@ -26,6 +27,8 @@ bool ImageLoadProcess()
 	colorBaseMat2 = imread("dog.jpg", CV_LOAD_IMAGE_COLOR);
 	morpBaseMat = imread("morphologyTest.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	buckBaseMat = imread("bucks.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	idolMat_1 = imread("idol1.jpg", CV_LOAD_IMAGE_COLOR);
+	idolMat_2 = imread("idol2.jpg", CV_LOAD_IMAGE_COLOR);
 
 	if (colorBaseMat.empty() || colorBaseMat2.empty() || morpBaseMat.empty() || buckBaseMat.empty())
 	{
@@ -49,7 +52,7 @@ void menuCheck()
 	{
 		EXIT = 0, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, 
 		LOWPASS = 7, HIGHPASS, MEDIAN, MORPHOLOGY, HOMOGENEOUSMOVE, HOMOGENEOUSROT,
-		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG, MORAVEC
+		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG, MORAVEC, HOG
 	};
 
 	int select;
@@ -70,7 +73,7 @@ void menuCheck()
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
 				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology | 11 : homoMove | 12 : homoRot | "
-				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength | 17 : MORAVEC |) : ";
+				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength | 17 : MORAVEC | 18 : HOG) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -248,10 +251,35 @@ void menuCheck()
 
 		case MORAVEC :
 			
-			buckBaseMat.copyTo(targetMat);
-			BasicImageProcess::MoravecEdgeDetect(buckBaseMat, targetMat, 15000);
-			cv::imshow("moravec", targetMat);
+			cv::cvtColor(idolMat_1, targetMat, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, &edges_1, 15000);
+			cv::imshow("idol1", idolMat_1);
 			cvWaitKey();
+
+			cv::cvtColor(idolMat_2, targetMat, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_2, &edges_2, 15000);
+			cv::imshow("idol2", idolMat_2);
+			cvWaitKey();
+			break;
+
+		case HOG :
+			
+			cv::cvtColor(idolMat_1, targetMat, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, &edges_1, 15000);
+			cv::imshow("idol1", idolMat_1);
+			cvWaitKey();
+
+			cv::cvtColor(idolMat_2, targetMat, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat2, idolMat_2, &edges_2, 15000);
+			cv::imshow("idol2", idolMat_2);
+			cvWaitKey();
+
+			std::vector<Histogram> hists;
+			Histogram h1(10);
+			hists.push_back(h1);
+			BasicImageProcess::calHogEdges(targetMat, edges_1, hists);
+			//BasicImageProcess::calHogEdges(targetMat2, edges_2);
+
 			break;
 		}
 	}

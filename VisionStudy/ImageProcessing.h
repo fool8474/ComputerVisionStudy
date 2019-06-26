@@ -1,5 +1,8 @@
 #pragma once
+#include "histogram.h"
 #include "pch.h"
+
+class Histogram;
 
 namespace BasicImageProcess
 {
@@ -13,8 +16,10 @@ namespace BasicImageProcess
 	void MorphologyClosing(cv::Mat baseMat, cv::Mat morpDil, cv::Mat morpOutput);
 	void MorphologyOpening(cv::Mat baseMat, cv::Mat morpEro, cv::Mat morpOutput);
 	void GetEdgeStrength(cv::Mat sobelX, cv::Mat sobelY, cv::Mat strengthMat);
-	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, int threshold);
+	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, std::vector<cv::Point> *edgeVec, int threshold);
 	void drawEdgePoint(cv::Mat edgeMat, int y, int x);
+	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<Histogram>& hists);
+	int GetQuadrantForHOG(int y, int x);
 }
 
 namespace FilterImageProcess

@@ -1,6 +1,4 @@
-#include "opencv2/opencv.hpp"
 #include "histogram.h"
-
 
 Histogram::Histogram(int numOfHist)
 {
