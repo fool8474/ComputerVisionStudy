@@ -96,7 +96,6 @@ void Homogeneous::BackwardingMapping(cv::Mat baseMat, cv::Mat backwardMappedMat)
 	{
 		for (int x = 0; x < baseMat.cols; ++x)
 		{
-			//후방 기하 변환을 구현하시오.
 			homoCoord[0][0] = y;
 			homoCoord[0][1] = x;
 			homoCoord[0][2] = 1;

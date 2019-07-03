@@ -1,10 +1,13 @@
 #pragma once
-#include "pch.h"
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include "opencv2/opencv.hpp"
 
 class Histogram 
 {
 public :
-	std::vector<int> hist;
+	std::vector <double> hist;
 	cv::Mat histogram_image;
 
 private : 

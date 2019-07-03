@@ -1,8 +1,6 @@
 #pragma once
+#include "opencv2/opencv.hpp"
 #include "histogram.h"
-#include "pch.h"
-
-class Histogram;
 
 namespace BasicImageProcess
 {
@@ -16,10 +14,19 @@ namespace BasicImageProcess
 	void MorphologyClosing(cv::Mat baseMat, cv::Mat morpDil, cv::Mat morpOutput);
 	void MorphologyOpening(cv::Mat baseMat, cv::Mat morpEro, cv::Mat morpOutput);
 	void GetEdgeStrength(cv::Mat sobelX, cv::Mat sobelY, cv::Mat strengthMat);
-	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, std::vector<cv::Point> *edgeVec, int threshold);
+	void MoravecEdgeDetect(cv::Mat& baseMat, cv::Mat& moravecMat, std::vector<cv::Point>& edgeVec, int threshold);
+	bool DoNonMaximumSuppression(cv::Mat & baseMat, int y, int x);
 	void drawEdgePoint(cv::Mat edgeMat, int y, int x);
-	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<Histogram>& hists);
+	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<std::vector<Histogram>> &edge_histograms);
 	int GetQuadrantForHOG(int y, int x);
+	void GetEuclideanDistance(std::vector<std::vector<Histogram>>& edge_histograms1, std::vector<std::vector<Histogram>>& edge_histograms2, std::vector<cv::Point>& pair_point);
+	void MakeImageForDrawPairPoint(cv::Mat & targetMat, cv::Mat & mat1, cv::Mat & mat2);
+	void DrawPairByPoints(cv::Mat & targetMat, cv::Size img1_size, std::vector<cv::Point>& pair_point, std::vector<cv::Point>& edges_1, std::vector<cv::Point>& edges_2);
+	void Ransac(std::vector<cv::Point>& pair, int num_of_data, std::vector<cv::Point>& edges_1, std::vector<cv::Point>& edges_2, cv::Mat & homogeneous_mat);
+	void GetBestLineHomogeneous(std::vector<cv::Point> pairs, std::vector<cv::Point> &edges_1, std::vector<cv::Point> &edges_2, cv::Mat &for_homogeneous, cv::Mat &for_homogeneous_2, cv::Mat &homogeneous_mat);
+	void PrintMat(cv::Mat printMat, bool isUchar);
+	void MakeRansacArrays(std::vector<int> select_array, std::vector<cv::Point>& pair, int i, std::vector<cv::Point>& edges_1, std::vector<cv::Point>& edges_2, cv::Mat & for_homogeneous, cv::Mat & for_homogeneous_2);
+	void MakePanoramaResultMap(cv::Mat & homogeneous_mat, cv::Mat & result_mat, cv::Mat base_mat1, cv::Mat base_mat2);
 }
 
 namespace FilterImageProcess

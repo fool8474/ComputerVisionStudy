@@ -1,5 +1,6 @@
-
 #include "ImageProcessing.h"
+#include "Homogeneous.h"
+#include <limits.h>
 
 namespace BasicImageProcess
 {
@@ -141,7 +142,7 @@ namespace BasicImageProcess
 		}
 	}
 
-	void MoravecEdgeDetect(cv::Mat baseMat, cv::Mat moravecMat, std::vector<cv::Point>* edgeVec, int threshold)
+	void MoravecEdgeDetect(cv::Mat& baseMat, cv::Mat& moravecMat, std::vector<cv::Point>& edgeVec, int threshold)
 	{
 
 		using namespace std;
@@ -198,13 +199,42 @@ namespace BasicImageProcess
 					}
 				}
 	
-				if (minRe >= 30000)
+				if (minRe >= threshold)
 				{
-					edgeVec->push_back(cv::Point(x,y));
-					drawEdgePoint(moravecMat, y, x);
+					
+					if (DoNonMaximumSuppression(baseMat, y, x))
+					{
+						if (y > 40 && y < baseMat.rows - 40 && x > 40 && x < baseMat.cols - 40)
+						{
+							drawEdgePoint(moravecMat, y, x);
+							edgeVec.push_back(cv::Point(x, y));
+						}
+					}
+					
 				}
 			}
 		}
+
+	}
+
+	bool DoNonMaximumSuppression(cv::Mat& baseMat, int y, int x)
+	{
+		int neighbor_pt[4][4] = { {0,-1,0,1},{1,0,-1,0},{1,1,-1,-1},{1,-1,-1,1} };
+
+		int cur_px = baseMat.at<uchar>(y, x);
+
+		for (int y_pt = -1; y_pt < 2; y_pt++)
+		{
+			for (int x_pt = -1; x_pt < 2; x_pt++)
+			{
+				int mov_px = baseMat.at<uchar>(y + y_pt, x + x_pt);
+
+				if (cur_px < mov_px)
+					return false;
+			}
+		}
+		
+		return true;
 	}
 
 	void drawEdgePoint(cv::Mat edgeMat, int y, int x)
@@ -212,24 +242,22 @@ namespace BasicImageProcess
 		cv::circle(edgeMat, cv::Point(x, y), 2, cv::Scalar(0,255,0));
 	}
 
-	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<Histogram>& hists)
+	void calHogEdges(cv::Mat& baseMat, std::vector<cv::Point>& edges, std::vector<std::vector<Histogram>> &edge_histograms)
 	{
-		Histogram hist(10);
-		hists.push_back(hist);
-		for (int i = 0; i < 10; i++)
-		{
-			hist.hist[i] ++;
-		}
-		hist.printHistogram();
-		return;
 		cv::Mat y_edge_mat, x_edge_mat;
 		cv::Mat orient_mat, magnit_mat;
+
+		const int CELLSIZE = 8;
+		const int BLOCKSIZE = 16;
+		const int STRIDE = 2;
 
 		y_edge_mat.create(baseMat.size(), CV_8UC1);
 		x_edge_mat.create(baseMat.size(), CV_8UC1);
 		orient_mat.create(baseMat.size(), CV_8UC1);
 		magnit_mat.create(baseMat.size(), CV_8UC1);
-		
+		orient_mat.setTo(cv::Scalar(1));
+		magnit_mat.setTo(cv::Scalar(1));
+
 		for (int y = 1; y < baseMat.rows - 1; y++)
 		{
 			for (int x = 1; x < baseMat.cols - 1; x++)
@@ -243,7 +271,7 @@ namespace BasicImageProcess
 
 				int magnitude = (int)sqrt(pow(result_x, 2) + pow(result_y, 2));
 				magnit_mat.at<uchar>(y, x) = magnitude;
-
+				
 				result_x = abs(result_x);
 				result_y = abs(result_y);
 				y_edge_mat.at<uchar>(y, x) = result_y;
@@ -259,37 +287,76 @@ namespace BasicImageProcess
 		{
 			std::vector<Histogram> edge_hist;
 
-			/* need to change 16 * 16 cell, 4 hist(8 grade) for edges */
-			Histogram hist_1(8);
-			Histogram hist_2(8);
-			Histogram hist_3(8);
-			Histogram hist_4(8);
-			
-			edge_hist.push_back(hist_1);
-			edge_hist.push_back(hist_2);
-			edge_hist.push_back(hist_3);
-			edge_hist.push_back(hist_4);
+			int cur_hist_pos = 0;
 
-			for (int y_mv = -8; y_mv < 8; y_mv++)
+			for (int y_block_mv = -BLOCKSIZE; y_block_mv <= BLOCKSIZE; y_block_mv += BLOCKSIZE * STRIDE)
 			{
-				for (int x_mv = -8; x_mv < 8; x_mv++)
+				for (int x_block_mv = -BLOCKSIZE; x_block_mv <= BLOCKSIZE; x_block_mv += BLOCKSIZE * STRIDE)
 				{
-					int position = GetQuadrantForHOG(y_mv, x_mv);
-					int cur_orient = (int)orient_mat.at<uchar>(y_mv + edges[edges_pt].y, x_mv + edges[edges_pt].x);
-					int cur_magnit = (int)magnit_mat.at<uchar>(y_mv + edges[edges_pt].y, x_mv + edges[edges_pt].x);
-					edge_hist[position-1].hist[cur_orient] += cur_magnit;
+					
+					Histogram hist_1(8);
+					Histogram hist_2(8);
+					Histogram hist_3(8);
+					Histogram hist_4(8);
+
+					edge_hist.push_back(hist_1);
+					edge_hist.push_back(hist_2);
+					edge_hist.push_back(hist_3);
+					edge_hist.push_back(hist_4);
+
+					double block_sum_for_norm = 0;
+
+					for (int y_mv = -CELLSIZE; y_mv < CELLSIZE; y_mv++)
+					{
+						for (int x_mv = -CELLSIZE; x_mv < CELLSIZE; x_mv++)
+						{
+							int cur_magnit = (int)magnit_mat.at<uchar>(y_mv + y_block_mv + edges[edges_pt].y, x_mv + x_block_mv + edges[edges_pt].x);
+
+							block_sum_for_norm += pow(cur_magnit,2);
+						}
+					}
+
+					block_sum_for_norm = sqrt(block_sum_for_norm);
+
+					for (int y_mv = -CELLSIZE; y_mv < CELLSIZE; y_mv++)
+					{
+						for (int x_mv = -CELLSIZE; x_mv < CELLSIZE; x_mv++)
+						{
+							int position = GetQuadrantForHOG(y_mv, x_mv);
+							int cur_orient = (int)orient_mat.at<uchar>(y_mv + y_block_mv + edges[edges_pt].y, x_mv + x_block_mv + edges[edges_pt].x);
+							int cur_magnit = (int)magnit_mat.at<uchar>(y_mv + y_block_mv + edges[edges_pt].y, x_mv + x_block_mv + edges[edges_pt].x);
+
+							edge_hist[cur_hist_pos * 4 + position - 1].hist[cur_orient] += (cur_magnit / block_sum_for_norm);
+						}
+					}
+
+					cur_hist_pos++;
 				}
 			}
-
-			edges_all_hist.push_back(edge_hist);
-
+			
+			edge_histograms.push_back(edge_hist);
 		}
+		
+		/*
+		for (int i = 0; i < edge_histograms.size(); i++)
+		{
+			for (int j = 0; j < edge_histograms[i].size(); j++)
+			{
+				edge_histograms[i][j].printHistogram();
+			}
+
+			std::cout << "--------------" << std::endl;
+		}
+		*/
+		
 		
 		cv::imshow("y_edge", y_edge_mat);
 		cv::imshow("x_edge", x_edge_mat);
 		cv::imshow("magnitude", magnit_mat);
 		cv::imshow("orient", orient_mat);
+		/*
 		cv::waitKey();
+		*/
 	}
 
 	int GetQuadrantForHOG(int y, int x)
@@ -305,6 +372,405 @@ namespace BasicImageProcess
 
 		if (y >= 0 && x >= 0)
 			return 4;
+	}
+
+	void GetEuclideanDistance(std::vector<std::vector<Histogram>> &edge_histograms1, std::vector<std::vector<Histogram>> &edge_histograms2, std::vector<cv::Point> &pair_point)
+	{
+		double min_of_min = std::numeric_limits<double>::max();
+
+		std::vector<double> min_distances;
+		std::vector<cv::Point> pair_temp_point, pair_temp_point_2;
+
+		for (int cur_point_1 = 0; cur_point_1 < edge_histograms1.size(); cur_point_1++)
+		{
+			double min_distance = std::numeric_limits<double>::max();
+			int min_position = -1;
+			for (int cur_point_2 = 0; cur_point_2 < edge_histograms2.size(); cur_point_2++)
+			{
+				/*std::cout << cur_point_1 << " " << cur_point_2 << std::endl;*/
+
+				double cur_distance = 0;
+
+				std::vector<Histogram> hist_vec_1 = edge_histograms1.at(cur_point_1);
+				std::vector<Histogram> hist_vec_2 = edge_histograms2.at(cur_point_2);
+
+				for (int cur_hist = 0; cur_hist < hist_vec_1.size(); cur_hist++)
+				{
+					std::vector<double> hist_1 = hist_vec_1.at(cur_hist).hist;
+					std::vector<double> hist_2 = hist_vec_2.at(cur_hist).hist;
+
+					for (int hist_idx = 0; hist_idx < hist_1.size(); hist_idx++)
+					{
+						cur_distance += pow(hist_1[hist_idx] - hist_2[hist_idx], 2);
+					}
+
+					if (sqrt(cur_distance) > min_distance)
+					{
+						break;
+					}
+				}
+
+				cur_distance = sqrt(cur_distance);
+
+				if (cur_distance <= min_distance)
+				{
+					min_position = cur_point_2;
+					min_distance = cur_distance;
+				}
+			}
+
+			if (min_of_min >= min_distance)
+			{
+				min_of_min = min_distance;
+			}
+
+			min_distances.push_back(min_distance);
+			pair_temp_point.push_back(cv::Point(cur_point_1, min_position));
+		}
+
+		for (int cur_point_2 = 0; cur_point_2 < edge_histograms2.size(); cur_point_2++)
+		{
+			double min_distance = std::numeric_limits<double>::max();
+			int min_position = -1;
+			for (int cur_point_1 = 0; cur_point_1 < edge_histograms1.size(); cur_point_1++)
+			{
+				/*std::cout << cur_point_1 << " " << cur_point_2 << std::endl;*/
+
+				double cur_distance = 0;
+
+				std::vector<Histogram> hist_vec_1 = edge_histograms1.at(cur_point_1);
+				std::vector<Histogram> hist_vec_2 = edge_histograms2.at(cur_point_2);
+
+				for (int cur_hist = 0; cur_hist < hist_vec_1.size(); cur_hist++)
+				{
+					std::vector<double> hist_1 = hist_vec_1.at(cur_hist).hist;
+					std::vector<double> hist_2 = hist_vec_2.at(cur_hist).hist;
+
+					for (int hist_idx = 0; hist_idx < hist_1.size(); hist_idx++)
+					{
+						cur_distance += pow(hist_1[hist_idx] - hist_2[hist_idx], 2);
+					}
+
+					if (sqrt(cur_distance) > min_distance)
+					{
+						break;
+					}
+				}
+
+				cur_distance = sqrt(cur_distance);
+
+				if (cur_distance <= min_distance)
+				{
+					min_position = cur_point_1;
+					min_distance = cur_distance;
+				}
+			}
+
+			if (min_of_min >= min_distance)
+			{
+				min_of_min = min_distance;
+			}
+
+			min_distances.push_back(min_distance);
+			pair_temp_point_2.push_back(cv::Point(min_position, cur_point_2));
+		}
+
+		for (int i = 0; i < pair_temp_point.size(); i++)
+		{
+			for (int j = 0; j < pair_temp_point_2.size(); j++)
+			{
+				if (pair_temp_point.at(i).x == pair_temp_point_2.at(j).x)
+				{
+					if (pair_temp_point.at(i).y == pair_temp_point_2.at(j).y)
+					{
+						if (min_of_min * 6 > min_distances.at(i))
+						{
+							pair_point.push_back(pair_temp_point.at(i));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	void MakeImageForDrawPairPoint(cv::Mat &targetMat, cv::Mat &mat1, cv::Mat &mat2)
+	{
+		targetMat.create(cv::Size(2000, 2000), CV_8UC3);
+		
+		for (int y = 0; y < mat1.rows; y++)
+		{
+			for (int x = 0; x < mat1.cols; x++)
+			{
+				targetMat.at<cv::Vec3b>(y, x)[0] = mat1.at<cv::Vec3b>(y, x)[0];
+				targetMat.at<cv::Vec3b>(y, x)[1] = mat1.at<cv::Vec3b>(y, x)[1];
+				targetMat.at<cv::Vec3b>(y, x)[2] = mat1.at<cv::Vec3b>(y, x)[2];
+			}
+		}
+
+		for (int y = 0; y < mat2.rows; y++)
+		{
+			for (int x = 0; x < mat2.cols; x++)
+			{
+				targetMat.at<cv::Vec3b>(y, x + mat1.cols)[0] = mat2.at<cv::Vec3b>(y, x)[0];
+				targetMat.at<cv::Vec3b>(y, x + mat1.cols)[1] = mat2.at<cv::Vec3b>(y, x)[1];
+				targetMat.at<cv::Vec3b>(y, x + mat1.cols)[2] = mat2.at<cv::Vec3b>(y, x)[2];
+			}
+		}
+	}
+
+	void DrawPairByPoints(cv::Mat &targetMat, cv::Size img1_size, std::vector<cv::Point> &pair_point, std::vector<cv::Point> &edges_1, std::vector<cv::Point> &edges_2)
+	{
+		std::srand((unsigned int)time(NULL));
+
+		for (int cur_pair = 0; cur_pair < pair_point.size(); cur_pair++)
+		{
+			cv::Point pair1 = edges_1.at(pair_point.at(cur_pair).x);
+			cv::Point pair2 = edges_2.at(pair_point.at(cur_pair).y);
+
+			cv::line(targetMat, pair1, cv::Point(pair2.x + img1_size.width, pair2.y), cv::Scalar(std::rand() % 255, std::rand() % 255, std::rand() % 255), 3);
+		}
+	}
+
+	void Ransac(std::vector<cv::Point> &pair, int num_of_data, std::vector<cv::Point> &edges_1, std::vector<cv::Point> &edges_2, cv::Mat &homogeneous_mat)
+	{
+		cv::Mat for_homogeneous;
+		cv::Mat for_homogeneous_2;
+
+		double prob = 0.05;
+
+		int num_of_test = std::log(1 - prob) / std::log(1 - pow(prob, num_of_data));
+
+		std::vector<cv::Point> best_inline_pair;
+		int best_pair = -1;
+
+		std::cout << "test Number : " << num_of_test << std::endl;
+		for (int test_case = 0; test_case < num_of_test; test_case++)
+		{
+			std::vector<cv::Point> cur_inline;
+
+			std::vector<int> select_array;
+			for (int i = 0; i < num_of_data; i++)
+			{
+				select_array.push_back(std::rand() % pair.size());
+			}
+
+			for_homogeneous.create(cv::Size(6, 6), CV_64FC1);
+			for_homogeneous.setTo(cv::Scalar(0));
+			for_homogeneous_2.create(cv::Size(1, 6), CV_64FC1);
+			for_homogeneous_2.setTo(cv::Scalar(0));
+
+			for (int i = 0; i < num_of_data; i++)
+			{
+				MakeRansacArrays(select_array, pair, i, edges_1, edges_2, for_homogeneous, for_homogeneous_2);
+			}
+
+			cv::Mat t_s = for_homogeneous.inv() * for_homogeneous_2;
+
+			homogeneous_mat.create(cv::Size(3, 3), CV_64FC1);
+			homogeneous_mat.setTo(cv::Scalar(0));
+
+			homogeneous_mat.at<double>(0, 0) = t_s.at<double>(0, 0);
+			homogeneous_mat.at<double>(1, 0) = t_s.at<double>(1, 0);
+			homogeneous_mat.at<double>(2, 0) = t_s.at<double>(2, 0);
+			homogeneous_mat.at<double>(0, 1) = t_s.at<double>(3, 0);
+			homogeneous_mat.at<double>(1, 1) = t_s.at<double>(4, 0);
+			homogeneous_mat.at<double>(2, 1) = t_s.at<double>(5, 0);
+			homogeneous_mat.at<double>(2, 2) = 1;
+
+			double avg = 0;
+
+			/*
+			PrintMat(for_homogeneous.inv(), false);
+			std::cout << "----------------" << std::endl;
+			PrintMat(homogeneous_mat, false);
+			*/
+
+			for (int cur_pair = 0; cur_pair < pair.size(); cur_pair++)
+			{
+				cv::Mat a_mat, b_mat, b_res_mat;
+				a_mat.create(cv::Size(3, 1), CV_64FC1);
+				b_mat.create(cv::Size(3, 1), CV_64FC1);
+
+				a_mat.at<double>(0, 0) = edges_1.at(pair.at(cur_pair).x).x;
+				a_mat.at<double>(0, 1) = edges_1.at(pair.at(cur_pair).x).y;
+				a_mat.at<double>(0, 2) = 1;
+
+				b_res_mat = a_mat * homogeneous_mat;
+				
+				b_mat.at<double>(0, 0) = edges_2.at(pair.at(cur_pair).y).x;
+				b_mat.at<double>(0, 1) = edges_2.at(pair.at(cur_pair).y).y;
+				b_mat.at<double>(0, 2) = 1;
+				
+				double cur_distance =  sqrt(pow(b_res_mat.at<double>(0, 0) - b_mat.at<double>(0, 0), 2) + pow(b_res_mat.at<double>(0, 1) - b_mat.at<double>(0, 1), 2));
+				avg += cur_distance;
+
+				if (cur_distance < 30)
+				{
+					cur_inline.push_back(pair.at(cur_pair));
+				}
+			}
+
+			if (cur_inline.size() > best_inline_pair.size())
+			{
+				best_inline_pair = cur_inline;
+				best_pair = test_case;
+			}
+
+			std::cout << "best_pair : " << best_inline_pair.size() << std::endl;
+		}
+
+		GetBestLineHomogeneous(best_inline_pair, edges_1, edges_2, for_homogeneous, for_homogeneous_2, homogeneous_mat);
+	}
+
+	void GetBestLineHomogeneous(std::vector<cv::Point> pairs, std::vector<cv::Point> &edges_1, std::vector<cv::Point> &edges_2, cv::Mat &for_homogeneous, cv::Mat &for_homogeneous_2, cv::Mat &homogeneous_mat)
+	{
+		for (int i = 0; i < pairs.size(); i++)
+		{
+			for (int j = 0; j < 2; j++)
+			{
+				for_homogeneous.at<double>(0 + 3 * j, 0 + 3 * j) += pow(edges_1.at(pairs.at(i).x).x, 2);
+				for_homogeneous.at<double>(0 + 3 * j, 1 + 3 * j) += edges_1.at(pairs.at(i).x).x * edges_1.at(pairs.at(i).x).y;
+				for_homogeneous.at<double>(0 + 3 * j, 2 + 3 * j) += edges_1.at(pairs.at(i).x).x;
+				for_homogeneous.at<double>(1 + 3 * j, 0 + 3 * j) += edges_1.at(pairs.at(i).x).x * edges_1.at(pairs.at(i).x).y;
+				for_homogeneous.at<double>(1 + 3 * j, 2 + 3 * j) += edges_1.at(pairs.at(i).x).y;
+				for_homogeneous.at<double>(2 + 3 * j, 0 + 3 * j) += edges_1.at(pairs.at(i).x).x;
+				for_homogeneous.at<double>(2 + 3 * j, 1 + 3 * j) += edges_1.at(pairs.at(i).x).y;
+				for_homogeneous.at<double>(2 + 3 * j, 2 + 3 * j) += 1;
+			}
+
+			for_homogeneous.at<double>(4, 4) += pow(edges_1.at(pairs.at(i).x).y, 2);
+
+			for_homogeneous_2.at<double>(0, 0) += edges_1.at(pairs.at(i).x).x * edges_2.at(pairs.at(i).y).x;
+			for_homogeneous_2.at<double>(1, 0) += edges_1.at(pairs.at(i).x).y * edges_2.at(pairs.at(i).y).x;
+			for_homogeneous_2.at<double>(2, 0) += edges_2.at(pairs.at(i).y).x;
+			for_homogeneous_2.at<double>(3, 0) += edges_1.at(pairs.at(i).x).x * edges_2.at(pairs.at(i).y).y;
+			for_homogeneous_2.at<double>(4, 0) += edges_1.at(pairs.at(i).x).y * edges_2.at(pairs.at(i).y).y;
+			for_homogeneous_2.at<double>(5, 0) += edges_2.at(pairs.at(i).y).y;
+		}
+
+		cv::Mat t_s = for_homogeneous.inv() * for_homogeneous_2;
+
+		homogeneous_mat.create(cv::Size(3, 3), CV_64FC1);
+		homogeneous_mat.setTo(cv::Scalar(0));
+
+		homogeneous_mat.at<double>(0, 0) = t_s.at<double>(0, 0);
+		homogeneous_mat.at<double>(1, 0) = t_s.at<double>(1, 0);
+		homogeneous_mat.at<double>(2, 0) = t_s.at<double>(2, 0);
+		homogeneous_mat.at<double>(0, 1) = t_s.at<double>(3, 0);
+		homogeneous_mat.at<double>(1, 1) = t_s.at<double>(4, 0);
+		homogeneous_mat.at<double>(2, 1) = t_s.at<double>(5, 0);
+		homogeneous_mat.at<double>(2, 2) = 1;
+
+		PrintMat(homogeneous_mat, false);
+	}
+
+	void PrintMat(cv::Mat printMat, bool isUchar)
+	{
+		for (int y = 0; y < printMat.rows; y++)
+		{
+			for (int x = 0; x < printMat.cols; x++)
+			{
+				if (isUchar)
+				{
+					std::cout << printMat.at<uchar>(y, x) << " ";
+				}
+
+				else
+				{
+					std::cout << printMat.at<double>(y, x) << " ";
+				}
+			}
+			std::cout << std::endl;
+		}
+	}
+
+	void MakeRansacArrays(std::vector<int> select_array, std::vector<cv::Point> &pair, int i, std::vector<cv::Point> &edges_1, std::vector<cv::Point> &edges_2, cv::Mat &for_homogeneous, cv::Mat &for_homogeneous_2)
+	{
+		for_homogeneous.at<double>(1, 1) += pow(edges_1.at(pair.at(select_array.at(i)).x).y, 2);
+
+		for (int j = 0; j < 2; j++)
+		{
+			for_homogeneous.at<double>(0 + 3 * j, 0 + 3 * j) += pow(edges_1.at(pair.at(select_array.at(i)).x).x, 2);
+			for_homogeneous.at<double>(0 + 3 * j, 1 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).x * edges_1.at(pair.at(select_array.at(i)).x).y;
+			for_homogeneous.at<double>(0 + 3 * j, 2 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).x;
+			for_homogeneous.at<double>(1 + 3 * j, 0 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).x * edges_1.at(pair.at(select_array.at(i)).x).y;
+			for_homogeneous.at<double>(1 + 3 * j, 2 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).y;
+			for_homogeneous.at<double>(2 + 3 * j, 0 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).x;
+			for_homogeneous.at<double>(2 + 3 * j, 1 + 3 * j) += edges_1.at(pair.at(select_array.at(i)).x).y;
+			for_homogeneous.at<double>(2 + 3 * j, 2 + 3 * j) += 1;
+		}
+
+		for_homogeneous.at<double>(4, 4) += pow(edges_1.at(pair.at(select_array.at(i)).x).y, 2);
+
+		for_homogeneous_2.at<double>(0, 0) += edges_1.at(pair.at(select_array.at(i)).x).x * edges_2.at(pair.at(select_array.at(i)).y).x;
+		for_homogeneous_2.at<double>(1, 0) += edges_1.at(pair.at(select_array.at(i)).x).y * edges_2.at(pair.at(select_array.at(i)).y).x;
+		for_homogeneous_2.at<double>(2, 0) += edges_2.at(pair.at(select_array.at(i)).y).x;
+		for_homogeneous_2.at<double>(3, 0) += edges_1.at(pair.at(select_array.at(i)).x).x * edges_2.at(pair.at(select_array.at(i)).y).y;
+		for_homogeneous_2.at<double>(4, 0) += edges_1.at(pair.at(select_array.at(i)).x).y * edges_2.at(pair.at(select_array.at(i)).y).y;
+		for_homogeneous_2.at<double>(5, 0) += edges_2.at(pair.at(select_array.at(i)).y).y;
+	}
+
+	void MakePanoramaResultMap(cv::Mat &homogeneous_mat, cv::Mat &result_mat, cv::Mat base_mat1, cv::Mat base_mat2)
+	{
+		result_mat.create(cv::Size(base_mat1.cols + base_mat2.cols, base_mat1.rows + base_mat2.rows), CV_8UC3);
+		result_mat.setTo(cv::Scalar(255, 255, 255));
+
+		cv::Mat to_move_pt;
+
+		int min_pt_x = 999999;
+		int min_pt_y = 999999;
+
+		for (int y = 0; y < base_mat1.rows; y++)
+		{
+			for (int x = 0; x < base_mat1.cols; x++)
+			{
+				to_move_pt.create(cv::Size(3, 1), CV_64FC1);
+				to_move_pt.at<double>(0, 0) = x;
+				to_move_pt.at<double>(0, 1) = y;
+				to_move_pt.at<double>(0, 2) = 1;
+
+				to_move_pt = to_move_pt * homogeneous_mat.inv();
+				/*std::cout << "moved    : " << int(to_move_pt.at<double>(0, 0)) - min_pt_y << " " << int(to_move_pt.at<double>(0, 1) - min_pt_x) << " " << to_move_pt.at<double>(0, 2) << std::endl;
+				std::cout << "original : " << x << " " << y << " " << 1 << std::endl;*/
+
+				if (min_pt_x >= int(to_move_pt.at<double>(0, 0)))
+					min_pt_x = int(to_move_pt.at<double>(0, 0));
+
+				if (min_pt_y >= int(to_move_pt.at<double>(0, 1)))
+					min_pt_y = int(to_move_pt.at<double>(0, 1));
+			}
+		}
+		
+		for (int y = 0; y < base_mat2.rows; y++)
+		{
+			for (int x = 0; x < base_mat2.cols; x++)
+			{
+				result_mat.at<cv::Vec3b>(y + min_pt_y, x + min_pt_x)[0] = base_mat2.at<cv::Vec3b>(y, x)[0];
+				result_mat.at<cv::Vec3b>(y + min_pt_y, x + min_pt_x)[1] = base_mat2.at<cv::Vec3b>(y, x)[1];
+				result_mat.at<cv::Vec3b>(y + min_pt_y, x + min_pt_x)[2] = base_mat2.at<cv::Vec3b>(y, x)[2];
+			}
+		}
+
+		for (int y = 0; y < base_mat1.rows; y++)
+		{
+			for (int x = 0; x < base_mat1.cols; x++)
+			{
+				to_move_pt.create(cv::Size(3, 1), CV_64FC1);
+				to_move_pt.at<double>(0, 0) = x;
+				to_move_pt.at<double>(0, 1) = y;
+				to_move_pt.at<double>(0, 2) = 1;
+
+				to_move_pt = to_move_pt * homogeneous_mat.inv();
+
+				result_mat.at<cv::Vec3b>(y,x)[0] = base_mat1.at<cv::Vec3b>(int(to_move_pt.at<double>(0, 1)) - min_pt_y, int(to_move_pt.at<double>(0, 0)) - min_pt_x)[0];
+				result_mat.at<cv::Vec3b>(y,x)[1] = base_mat1.at<cv::Vec3b>(int(to_move_pt.at<double>(0, 1)) - min_pt_y, int(to_move_pt.at<double>(0, 0)) - min_pt_x)[1];
+				result_mat.at<cv::Vec3b>(y,x)[2] = base_mat1.at<cv::Vec3b>(int(to_move_pt.at<double>(0, 1)) - min_pt_y, int(to_move_pt.at<double>(0, 0)) - min_pt_x)[2];
+
+			}
+		}
+
+		cv::imshow("panorama", result_mat);
+		cv::waitKey();
 	}
 }
 
@@ -433,7 +899,7 @@ namespace FilterImageProcess
 			{
 				if (sort_array[i] < sort_array[j])
 				{
-					int temp = sort_array[i];
+					int temp = sort_array[i]; 
 					sort_array[i] = sort_array[j];
 					sort_array[j] = temp;
 				}

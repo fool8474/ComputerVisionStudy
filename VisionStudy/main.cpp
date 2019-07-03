@@ -1,10 +1,15 @@
-#include "pch.h"
+#include "opencv2/opencv.hpp"
+#include "ImageProcessing.h"
+#include "histogram.h"
+#include "Homogeneous.h"
 
 using namespace cv;
 
 Mat colorBaseMat, colorBaseMat2, grayBaseMat, morpBaseMat, targetMat, targetMat2, bridgeMat;
 Mat sobelXMat, sobelYMat, buckBaseMat, idolMat_1, idolMat_2, idolMat_result;
-std::vector<Point> edges_1, edges_2;
+
+std::vector<Point> edges_1, edges_2, pair_point;
+std::vector<std::vector<Histogram>> edge_histogram_vec_1, edge_histogram_vec_2;
 
 void menuCheck();
 bool ImageLoadProcess();
@@ -52,7 +57,7 @@ void menuCheck()
 	{
 		EXIT = 0, GRAYSCALE, INVERSE, YCBCR, CHECKHISTOGRAM, BINARY, DISSOLVE, 
 		LOWPASS = 7, HIGHPASS, MEDIAN, MORPHOLOGY, HOMOGENEOUSMOVE, HOMOGENEOUSROT,
-		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG, MORAVEC, HOG
+		SOBELY = 13, SOBELX, PYRAMID, SOBELSTRENG, MORAVEC, HOG, PANORAMA,
 	};
 
 	int select;
@@ -73,7 +78,7 @@ void menuCheck()
 	{
 		std::cout << "메뉴를 선택하십시오\n (0 : 종료 | 1 : grayscale | 2 : inverse | 3 : ycbcr | 4 : checkHistogram | 5 : binary(Basic) |"
 				  << " \n 6 : dissolve | 7 : lowpass | 8 : highpass | 9 : median | 10 : morphology | 11 : homoMove | 12 : homoRot | "
-				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength | 17 : MORAVEC | 18 : HOG) : ";
+				  << " \n 13 : sobelY | 14 : sobelX | 15 : pyramid | 16 : sobelStrength | 17 : MORAVEC | 18 : HOG | 19 : PANORAMA) : ";
 		std::cin >> select;
 		
 		switch (select)
@@ -252,12 +257,12 @@ void menuCheck()
 		case MORAVEC :
 			
 			cv::cvtColor(idolMat_1, targetMat, COLOR_BGR2GRAY);
-			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, &edges_1, 15000);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, edges_1, 5000);
 			cv::imshow("idol1", idolMat_1);
-			cvWaitKey();
+			cv::waitKey();
 
 			cv::cvtColor(idolMat_2, targetMat, COLOR_BGR2GRAY);
-			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_2, &edges_2, 15000);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_2, edges_2, 5000);
 			cv::imshow("idol2", idolMat_2);
 			cvWaitKey();
 			break;
@@ -265,22 +270,55 @@ void menuCheck()
 		case HOG :
 			
 			cv::cvtColor(idolMat_1, targetMat, COLOR_BGR2GRAY);
-			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, &edges_1, 15000);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, edges_1, 15000);
 			cv::imshow("idol1", idolMat_1);
 			cvWaitKey();
 
-			cv::cvtColor(idolMat_2, targetMat, COLOR_BGR2GRAY);
-			BasicImageProcess::MoravecEdgeDetect(targetMat2, idolMat_2, &edges_2, 15000);
+			cv::cvtColor(idolMat_2, targetMat2, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat2, idolMat_2, edges_2, 15000);
 			cv::imshow("idol2", idolMat_2);
 			cvWaitKey();
 
+			BasicImageProcess::calHogEdges(targetMat, edges_1, edge_histogram_vec_1);
+			BasicImageProcess::calHogEdges(targetMat2, edges_2, edge_histogram_vec_2);
+
+			break;
+
+		case PANORAMA:
+
+			cv::Mat colorIdolOrigin_1 = idolMat_1.clone();
+			cv::Mat colorIdolOrigin_2 = idolMat_2.clone();
+			cv::Mat panorama_result_mat;
+
+			cv::cvtColor(idolMat_1, targetMat, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat, idolMat_1, edges_1, 5000);
+			//cv::imshow("idol1", idolMat_1);
+			//cvWaitKey();
+
+			cv::cvtColor(idolMat_2, targetMat2, COLOR_BGR2GRAY);
+			BasicImageProcess::MoravecEdgeDetect(targetMat2, idolMat_2, edges_2, 5000);
+			//cv::imshow("idol2", idolMat_2);
+			//cvWaitKey();
+			
 			std::vector<Histogram> hists;
 			Histogram h1(10);
 			hists.push_back(h1);
-			BasicImageProcess::calHogEdges(targetMat, edges_1, hists);
-			//BasicImageProcess::calHogEdges(targetMat2, edges_2);
+			BasicImageProcess::calHogEdges(targetMat, edges_1, edge_histogram_vec_1);
+			BasicImageProcess::calHogEdges(targetMat2, edges_2, edge_histogram_vec_2);
+			BasicImageProcess::GetEuclideanDistance(edge_histogram_vec_1, edge_histogram_vec_2, pair_point);
 
+			BasicImageProcess::MakeImageForDrawPairPoint(idolMat_result, idolMat_1, idolMat_2);
+			BasicImageProcess::DrawPairByPoints(idolMat_result, idolMat_1.size(), pair_point, edges_1, edges_2);
+			cv::imshow("idol_pair", idolMat_result);
+			cvWaitKey();
+
+			cv::Mat homogeneous_mat;
+			BasicImageProcess::Ransac(pair_point, 3, edges_1, edges_2, homogeneous_mat);
+			BasicImageProcess::MakePanoramaResultMap(homogeneous_mat, panorama_result_mat, colorIdolOrigin_1, colorIdolOrigin_2);
 			break;
+
 		}
+
+
 	}
 }
